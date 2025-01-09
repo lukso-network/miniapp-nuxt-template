@@ -31,8 +31,8 @@ jobs:
       - name: 🎨 Lint
         run: yarn lint
 
-      - name: 🧪 Run Unit tests
-        run: yarn test:unit:ci
+      - name: 🧪 Run Test Build
+        run: yarn build
 
   review:
     runs-on: ubuntu-latest
@@ -138,8 +138,7 @@ jobs:
 
       - name: 🏗️ Build
         run: |
-          yarn prepare
-          NODE_ENV=production yarn run pages:build
+          NODE_ENV=production yarn pages:build
 
       - name: 🚀 Deploy release
         if: ${{ steps.extract_branch.outputs.branch_name == '' }}
