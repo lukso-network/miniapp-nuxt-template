@@ -1,0 +1,169 @@
+name: Test, Review, Deploy
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: 'yarn'
+
+      - name: 🛠️ Install dependencies
+        run: yarn install --inline-builds
+
+      - name: 🎨 Lint
+        run: yarn lint
+
+      - name: 🧪 Run Unit tests
+        run: yarn test:unit:ci
+
+  review:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: 🔍 Get Pull Request Info
+        id: pr-info
+        if: ${{ github.event.number != null }}
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            return !pr.data?.draft && !pr.data.labels?.some(label => label.name === 'review-requested') ? "true" : "false";
+
+      - name: 📃 Output info
+        if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
+        run: echo "${{ steps.pr-info.outputs.result }}"
+
+      - name: 🧑🏼‍💻 Run Auto-Assign
+        if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
+        uses: kentaro-m/auto-assign-action@v2.0.0
+        with:
+          configuration-path: '.github/auto_assign.yaml'
+
+      - name: 🔍 Get Discord Mentions
+        if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' && secrets.WEBHOOK_URL != '' }}
+        id: discord-mentions
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const creator = context.actor;
+            const mentions = [
+              { githubUser: 'dzbo', discordId: '752572450834743316' },
+              { githubUser: 'richtera', discordId: '457668914198085643' },
+              { githubUser: 'doubleppereira', discordId: '366621324069830669' },
+              { githubUser: "JeneaVranceanu", discordId: "785496710150357023" }
+            ];
+            const filteredMentions = mentions
+              .filter(mention => mention.githubUser !== creator)
+              .map(mention => `<@${mention.discordId}>`)
+              .join(' ');
+            return filteredMentions;
+
+      - name: 📃 Output info
+        if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
+        run: echo "${{ steps.discord-mentions.outputs.result }} https://github.com/universal-everything/universaleverything.io/pull/${{ github.event.number }} - ${{ github.event.pull_request.title }}"
+
+      - name: 🧑🏼‍💻 Run Discord Webhook Action
+        if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' && secrets.WEBHOOK_URL != '' }}
+        uses: tsickert/discord-webhook@v6.0.0
+        with:
+          webhook-url: ${{ secrets.WEBHOOK_URL }}
+          content: '${{ steps.discord-mentions.outputs.result }} https://github.com/universal-everything/universaleverything.io/pull/${{ github.event.number }} - ${{ github.event.pull_request.title }}'
+
+      - name: ✨ Add 'review-requested' Label
+        if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['review-requested']
+            });
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: 🌱 Extract branch name
+        shell: bash
+        run: |
+          PR_NUMBER="${{ github.event.number }}"
+          if [ -n "$PR_NUMBER" ]
+          then
+            echo "branch_name=pr-${PR_NUMBER}" >> $GITHUB_OUTPUT
+            echo "url=https://pr-${PR_NUMBER}.${{ secrets.CF_BASE_URL }}.pages.dev" >> $GITHUB_OUTPUT
+          else
+            echo "branch_name=" >> $GITHUB_OUTPUT
+          fi
+
+        id: extract_branch
+
+      - name: ✅ Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.0.0'
+          cache: 'yarn'
+
+      - name: 🛠️ Install
+        run: yarn install
+
+      - name: 🏗️ Build
+        run: |
+          yarn prepare
+          NODE_ENV=production yarn run pages:build
+
+      - name: 🚀 Deploy release
+        if: ${{ steps.extract_branch.outputs.branch_name == '' }}
+        uses: cloudflare/wrangler-action@2.0.0
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy --project-name "${{ secrets.CF_PROJECT_NAME }}" dist
+
+      - name: 🚀 Deploy ${{ steps.extract_branch.outputs.branch_name }} (PR)
+        if: ${{ steps.extract_branch.outputs.branch_name != '' }}
+        uses: cloudflare/wrangler-action@2.0.0
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy --project-name "${{ secrets.CF_PROJECT_NAME }}" dist --branch "${{ steps.extract_branch.outputs.branch_name }}" | tee output.log
+          postCommands: |
+            sed < output.log -n 's#.*Take a peek over at \(.*\)$#specific_url=\1#p' >> $GITHUB_OUTPUT
+        id: deploy
+
+      - name: ✍🏻 Create commit comment
+        uses: mshick/add-pr-comment@v2
+        if: ${{ steps.extract_branch.outputs.branch_name != '' }}
+        with:
+          message: |
+            ### Deployed with **Cloudflare Pages** :cloud: :rocket: :ok:
+            - **URL**: [${{ steps.extract_branch.outputs.url }}](${{ steps.extract_branch.outputs.url }})
