@@ -18,6 +18,7 @@
     "@eslint/compat": "^1.2.4",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.17.0",
+    "@lukso/up-provider": "^0.2.2",
     "@typescript-eslint/eslint-plugin": "8.19.1",
     "@typescript-eslint/parser": "8.19.1",
     "autoprefixer": "^10.4.20",
@@ -38,6 +39,7 @@
     "typescript": "^5.7.3",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0",
+    "web3": "^4.16.0",
     "wrangler": "^3.100.0"
   },
   "packageManager": "yarn@4.6.0"
