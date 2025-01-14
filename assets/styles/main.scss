@@ -1,0 +1,9 @@
+$font-file-path: "/assets/fonts";
+
+@import "@lukso/web-components/tools/sass/main.scss";
+
+body {
+  height: 100%;
+
+  @apply bg-neutral-100 text-neutral-20;
+}

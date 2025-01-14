@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /** @type {import('tailwindcss').Config} */
 export default {
+  presets: [require("@lukso/web-components/tailwind.config")],
   content: [
     "./components/**/*.{js,vue,ts}",
     "./layouts/**/*.vue",

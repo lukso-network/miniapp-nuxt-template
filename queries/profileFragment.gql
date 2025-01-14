@@ -1,0 +1,11 @@
+fragment profile on Profile {
+  name
+  id
+  profileImage: profileImages(order_by: { width: desc }) {
+    url: src
+    width
+    height
+    verified
+    error
+  }
+}
