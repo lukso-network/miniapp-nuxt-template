@@ -7,7 +7,6 @@ import Web3, {
   type EthExecutionAPI,
 } from 'web3'
 
-const MIN_AMOUNT = 0.25 // Minimum allowed value
 const MAX_AMOUNT = 1000 // Maximum allowed value
 
 const { getProfile } = useProfile()
@@ -17,8 +16,8 @@ const contextAccounts = ref<string[]>([])
 const walletConnected = ref<boolean>(false)
 const web3 = ref<Web3 | null>(null)
 const profile = ref<Profile | null>(null)
-const error = ref('') // Error message for validation feedback
-const amount = ref(1)
+const error = ref('')
+const amount = ref('1')
 const isLoaded = ref(false)
 
 const address = computed(() => contextAccounts.value[0])
@@ -118,18 +117,75 @@ watch(
   }
 )
 
-const handleInput = (customEvent: CustomEvent) => {
+/**
+ *  When user paste value with comma 123, 44 we swap to dot notation 123.44
+ *
+ * @param value
+ */
+const parseValue = (value: string) => String(value).replace(',', '.')
+
+const handleInput = async (customEvent: CustomEvent) => {
+  const numberRegex = /^[0-9]*\.?[0-9]*$/
   const event = customEvent.detail.event
   const input = event.target as HTMLInputElement
-  amount.value = Number.parseFloat(input.value)
+  const key = input.value.slice(-1)
+  const currentAmount = amount.value
+  const maxDecimalPlaces = 18
+  error.value = ''
 
-  if (amount.value < MIN_AMOUNT) {
-    error.value = `Amount must be at least ${MIN_AMOUNT} LYX.`
-  } else if (amount.value > MAX_AMOUNT) {
-    error.value = `Amount cannot exceed ${MAX_AMOUNT} LYX.`
-  } else {
-    error.value = '' // Clear error if valid
+  // allow type only numbers
+  if (!numberRegex.test(key)) {
+    amount.value = currentAmount
+    input.value = currentAmount.toString()
+    return
   }
+
+  // dot not as first character
+  if (key === '.' && input.value === '.') {
+    amount.value = currentAmount
+    input.value = currentAmount.toString()
+    return
+  }
+
+  // prevent double zero
+  if (key === '0' && amount.value === '0') {
+    amount.value = currentAmount
+    input.value = currentAmount.toString()
+    return
+  }
+
+  // allow only one dot
+  if (key === '.' && input.value.split('.').length > 2) {
+    amount.value = currentAmount
+    input.value = currentAmount.toString()
+    return
+  }
+
+  // check for max decimal places
+  if (input.value.toString().split('.')[1]?.length > maxDecimalPlaces) {
+    amount.value = currentAmount
+    input.value = currentAmount.toString()
+    return
+  }
+
+  // when user clear the value
+  if (input.value === '') {
+    amount.value = ''
+    return
+  }
+
+  // convert to number
+  const _amount = Number.parseFloat(parseValue(input.value))
+
+  // check for max amount
+  if (_amount > MAX_AMOUNT) {
+    error.value = `Amount cannot exceed ${MAX_AMOUNT} LYX.`
+    amount.value = MAX_AMOUNT.toString()
+    return
+  }
+
+  // if we made here, all good, update the amount
+  amount.value = parseValue(input.value)
 }
 
 // Optionally validate immediately on load or updates
@@ -138,7 +194,7 @@ const donate = async () => {
     {
       from: accounts.value[0],
       to: contextAccounts.value[0],
-      value: utils.toWei(amount.value, 'ether'),
+      value: utils.toWei(utils.toNumber(amount.value), 'ether'),
     },
     undefined,
     { checkRevertBeforeSending: false }
@@ -172,7 +228,6 @@ const donate = async () => {
       <div class="w-full max-w-[400px]">
         <lukso-input
           :value="amount"
-          :min="MIN_AMOUNT"
           :max="MAX_AMOUNT"
           :error="error"
           placeholder="Enter Amount"
