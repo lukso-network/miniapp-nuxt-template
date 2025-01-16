@@ -86,14 +86,14 @@ jobs:
 
       - name: 📃 Output info
         if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
-        run: echo "${{ steps.discord-mentions.outputs.result }} https://github.com/lukso-network/example-miniapps/pull/${{ github.event.number }} - ${{ github.event.pull_request.title }}"
+        run: echo "${{ steps.discord-mentions.outputs.result }} https://github.com/${{ github.repository }}/pull/${{ github.event.number }} - ${{ github.event.pull_request.title }}"
 
       - name: 🧑🏼‍💻 Run Discord Webhook Action
         if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
         uses: tsickert/discord-webhook@v6.0.0
         with:
           webhook-url: ${{ secrets.WEBHOOK_URL }}
-          content: '${{ steps.discord-mentions.outputs.result }} https://github.com/lukso-network/example-miniapps/pull/${{ github.event.number }} - ${{ github.event.pull_request.title }}'
+          content: '${{ steps.discord-mentions.outputs.result }} https://github.com/${{ github.repository }}/pull/${{ github.event.number }} - ${{ github.event.pull_request.title }}'
 
       - name: ✨ Add 'review-requested' Label
         if: ${{ github.event.number != null && steps.pr-info.outputs.result == 'true' }}
