@@ -148,7 +148,7 @@ const donate = async () => {
 
 <template>
   <div
-    class="flex h-screen flex-col items-center justify-center rounded-8 border border-neutral-95 px-8"
+    class="flex h-screen flex-col items-center justify-center rounded-8 px-8"
   >
     <template v-if="isLoaded">
       <div class="heading-inter-17-semi-bold pb-4">Donate LYX to</div>
