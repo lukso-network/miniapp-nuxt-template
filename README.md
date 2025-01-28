@@ -1,6 +1,6 @@
-# Nuxt Minimal Starter
+# Mini-app nuxt.js template
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+A template project demonstrating how to build mini-apps using the [up-provider package](https://github.com/lukso-network/tools-up-provider) and interacting with Universal Profiles on [Universal Everything](https://universaleverything.io), built with [nuxt.js](https://nuxt.com).
 
 ## Setup
 
