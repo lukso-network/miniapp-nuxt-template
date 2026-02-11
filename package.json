@@ -47,5 +47,5 @@
     "web3": "^4.16.0",
     "wrangler": "^3.100.0"
   },
-  "packageManager": "yarn@4.6.0"
+  "packageManager": "yarn@4.12.0"
 }
